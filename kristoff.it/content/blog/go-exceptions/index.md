@@ -1,0 +1,54 @@
+---
+title : "Yes, Go Does Have Exceptions"
+description : ""
+author : "Loris Cro"
+layout : "post.shtml"
+date : "2024-10-17T00:00:00"
+--- 
+
+The Zig official website states in its [Overview page](https://ziglang.org/learn/overview/) the following (emphasis mine):
+
+```=html
+<style>
+blockquote {
+  font-size: 1em;
+  font-style: normal;
+}
+</style>
+```
+
+> [In Zig] There is no hidden control flow, no hidden memory allocations, no preprocessor, and no macros. If Zig code doesn't look like it's jumping away to call a function, then it isn't. This means you can be sure that the following code calls only foo() and then bar(), and this is guaranteed without needing to know the types of anything:
+> ```zig
+> var a = b + c.d;
+> foo();
+> bar();
+> ```
+> 
+> Examples of hidden control flow:
+> 
+> - D has `@property` functions, which are methods that you call with what looks like field access, so in the above example, `c.d` might call a function.
+> - C++, D, and Rust have operator overloading, so the `+` operator might call a function.
+> - **C++, D, and Go have throw/catch exceptions**, so `foo()` might throw an exception, and prevent `bar()` from being called.
+
+
+**Go does have throw/catch exceptions, that's what panic/recover is.**
+
+Yes, it's not the default method of handling errors but it does get used as one, and not just by random java-smelling packages nobody uses.
+
+**The Go standard library uses panic/recover as a [control flow mechanism in parser code](https://github.com/golang/go/blob/f95ae3d68989505fcac9ec23cacc03d602ec6739/src/regexp/syntax/parse.go#L892) for example.**
+
+At GoLab 2022 **I asked a Go core team member if it would make sense to have a "never recover" policy** in one's codebase to avoid a bunch of concurrency-related footguns (e.g. ~~mutexes that fail to unlock because the defer unlock didn't run during a panic~~ [1] partially initialized state where you wouldn't expect it), and **their answer was that you must assume that the code that you depend on might try to recover, including stdlib code**. [Link to the question](https://youtu.be/GtsSzbs-xb8?si=Kt8qyCQbJ41FUuZ0&t=2788), but I recommend watching the whole talk if you're a Go developer.
+
+Note that this is a problem that might affect you even if you never called recover yourself, as any code that you depend on might do so "[on your behalf](https://cs.opensource.google/go/go/+/refs/tags/go1.23.2:src/net/http/server.go;l=81-90)" (e.g. above a callback defined by you).
+
+We keep getting new issues opened on the official Zig website repository from people that try to correct us, so I will start linking this post whenever I close them.
+
+But as a more high-level point, the fact that Go users don't realize that their language does have exceptions is in my opinion a shortcoming of the Go marketing & learning industry.
+
+I understand that exceptions are out of fashion, but if your language does have exceptions, and if blessed (e.g. stdlib) code uses them, then users shouldn't be convinced that your language doesn't have exceptions.
+
+
+## Still unconvinced?
+See a practical example [in the follow up post](/blog/go-exceptions-unconvinced/).
+
+*[1] correction wrt the striked out part: I misremembered [this talk section](https://youtu.be/GtsSzbs-xb8?si=QRvLqjyL7gDavnHw&t=2005) slightly, defers do run during a panic but other stuff could be left in a corrupted state. The speaker does mention the possibility of mutex corruption in the Q&A section, and how Rust does better, but they don't go into further detail.*

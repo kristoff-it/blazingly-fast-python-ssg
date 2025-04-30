@@ -1,0 +1,5 @@
+public/
+.DS_Store
+resources/
+.zig-cache/
+zig-out/
